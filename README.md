@@ -1,1 +1,74 @@
-# GameServerKeeper
+# GameServerKeeper (C# .NET 8 WinForms)
+
+여러 데디케이트 서버(게임 종류 무관)를 한 프로그램에서 운영하는 매니저.
+현재 지원: **Palworld** (REST API 연동), **범용** (전용 연동 없는 아무 서버).
+
+## 빌드 / 배포
+```powershell
+dotnet build -c Release
+dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
+```
+실행 파일 옆에 `config.json`, `logs\yyyy-MM-dd.log` 가 생성됩니다. (로그는 `[서버이름/소스]` 로 구분)
+
+## 구조
+```
+GameServerKeeper/
+├─ Program.cs
+├─ Core/                         ← 게임 중립 (새 게임을 추가해도 수정 불필요)
+│  ├─ Logging/Logger.cs          UI + 일별 파일 로그, 서버별 스코프 로거
+│  ├─ Config/
+│  │  ├─ AppConfig.cs            전역 설정 + 서버 목록 + 서버 간 충돌 검사
+│  │  ├─ ServerProfile.cs        서버 1대 설정 (공통 항목 + Game 전용 설정)
+│  │  └─ ConfigManager.cs        config.json (GameSettings 다형성 직렬화)
+│  ├─ Games/
+│  │  ├─ IGameServerAdapter.cs   게임 어댑터 인터페이스 + 기능 플래그(GameCapabilities)
+│  │  └─ GameRegistry.cs         지원 게임 목록  ← 새 게임 등록 위치
+│  ├─ Services/
+│  │  ├─ ProcessManager.cs       실행 → 자손 중 실제 서버 프로세스 추적/메모리/Kill
+│  │  ├─ SteamCmdUpdater.cs      app_update (steamcmd 경로별 직렬화)
+│  │  ├─ BackupManager.cs        세이브 → {접두어}_yyyyMMdd_HHmmss.zip, 보관 정리
+│  │  ├─ ConsoleCtrl.cs          콘솔 서버에 Ctrl+C 전송 (범용 서버 정상 종료)
+│  │  └─ DiscordNotifier.cs
+│  └─ Server/
+│     ├─ ServerInstance.cs       서버 1대 오케스트레이션 (안전 종료/크래시/메모리/정기 재시작)
+│     └─ ServerManager.cs        서버 추가/편집/삭제, 전체 종료
+├─ Games/
+│  ├─ Palworld/                  PalworldSettings, PalworldAdapter, PalworldRestClient
+│  └─ Generic/                   GenericSettings, GenericAdapter
+└─ UI/                           MainForm(전체 현황 + 서버별 탭), ServerPanel, Dialogs
+```
+
+## 새 게임 추가 방법
+1. `Games/{게임}/` 에 `GameSettings` 파생 클래스 작성 (그 게임만의 설정: RCON 포트/비밀번호 등)
+2. `GameServerAdapterBase` 파생 어댑터 작성 — 지원하는 것만 override
+   - `Capabilities` : PlayerList / Announce / Save / GracefulShutdown 중 지원하는 것
+   - `TrackedProcessName` : 런처가 자식 프로세스를 띄우면 그 이름
+   - `GetPlayersAsync`, `AnnounceAsync`, `SaveAsync`, `RequestShutdownAsync`, `CheckConfiguration`
+3. `GameDefinition` (Id, 이름, 기본 프로필) 을 만들고 `GameRegistry` 목록에 한 줄 추가
+
+지원하지 않는 기능은 공통 로직이 자동으로 건너뜁니다.
+(예: 접속자 조회 불가 → 메모리 재시작 시 0명 판단 불가하므로 공지 기능이 있으면 항상 카운트다운)
+전용 어댑터를 만들기 전에도 **범용** 타입으로 등록하면 프로세스 감시·크래시 복구·메모리 재시작·백업·업데이트·정기 재시작은 바로 쓸 수 있습니다.
+
+## 여러 서버 운영 시 주의
+- 서버마다 **설치 폴더 / 세이브 폴더가 달라야** 합니다 (저장 시 검사).
+- 같은 백업 폴더를 공유해도 되지만 **백업 접두어는 달라야** 합니다 (보관 정리가 서로의 백업을 지우지 않도록).
+- 게임 포트·API 포트는 서버마다 다르게 지정하세요.
+- 같은 SteamCMD 를 쓰는 업데이트는 자동으로 한 대씩 순서대로 실행됩니다. 정기 재시작 시각을 엇갈리게 두면 더 좋습니다.
+
+## 팰월드 서버 필수 설정 (`Pal\Saved\Config\WindowsServer\PalWorldSettings.ini`)
+```
+RESTAPIEnabled=True,RESTAPIPort=8212,AdminPassword="원하는비밀번호"
+```
+매니저의 서버 설정 → 게임 설정의 포트/AdminPassword 와 같아야 합니다 (시작 시 자동 점검).
+REST API 포트는 방화벽에서 외부 접근을 막으세요.
+
+## 동작 요약
+| 기능 | 동작 |
+|---|---|
+| 안전 종료 | (접속자 있으면) 카운트다운 공지 → 저장 → 종료 요청 → 대기 → 미종료 시에만 Kill. 게임이 지원하지 않는 단계는 생략 |
+| 크래시 복구 | 요청하지 않은 종료 → 로그/디스코드 → 지연 후 재시작. 시간 창 내 허용 횟수 초과 시 중단 |
+| 메모리 | 주기적으로 실제 서버 프로세스 WorkingSet64 측정, 임계치 초과 시 안전 재시작 |
+| 정기 재시작 | 서버별 지정 시각~10분 이내 하루 1회: 안전 종료 → 백업 → 업데이트 → 시작 |
+| 매니저 재실행 | 설치 폴더 기준으로 실행 중인 서버를 찾아 자동 연결 |
+| 매니저 종료 | 모든 서버 병렬 안전 종료 후 종료 / 서버는 둔 채 매니저만 종료 |
