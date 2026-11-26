@@ -81,9 +81,6 @@ public sealed class ServerPanel : UserControl
 
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 46, Padding = new Padding(4, 6, 4, 4), WrapContents = false };
         buttons.Controls.AddRange([_btnStart, _btnStop, _btnRestart, _btnBackup, _btnUpdate, _btnAnnounce, _chkUpdate, _btnOpenBackups]);
-        _btnStart.BackColor = Color.FromArgb(220, 245, 225);
-        _btnStop.BackColor = Color.FromArgb(250, 225, 225);
-
         _lvPlayers.Columns.Add("이름", 130);
         _lvPlayers.Columns.Add("Lv", 40, HorizontalAlignment.Right);
         _lvPlayers.Columns.Add("Ping", 55, HorizontalAlignment.Right);
@@ -97,7 +94,14 @@ public sealed class ServerPanel : UserControl
         var split = new SplitContainer { Dock = DockStyle.Fill, FixedPanel = FixedPanel.Panel1, SplitterWidth = 6 };
         split.Panel1.Controls.Add(playersGroup);
         split.Panel2.Controls.Add(logGroup);
-        HandleCreated += (_, _) => split.SplitterDistance = 380;
+        // 크기가 확정된 뒤에 한 번만 접속자 목록 폭을 잡는다 (HandleCreated 시점에는 폭이 0이라 무시됨)
+        bool splitInitialized = false;
+        split.SizeChanged += (_, _) =>
+        {
+            if (splitInitialized || split.Width < 700) return;
+            split.SplitterDistance = 400;
+            splitInitialized = true;
+        };
 
         Controls.Add(split);
         Controls.Add(buttons);
@@ -197,11 +201,20 @@ public sealed class ServerPanel : UserControl
         _btnUpdate.Enabled = idle && !s.ProcessRunning && Server.Profile.AppId > 0;
         _btnAnnounce.Enabled = caps.HasFlag(GameCapabilities.Announce) && s.ProcessRunning && (s.ApiOnline || !hasPlayers);
         _chkUpdate.Enabled = Server.Profile.AppId > 0;
+        ApplyButtonColors();
+    }
+
+    /// <summary>시작/종료 버튼 강조색은 활성 상태일 때만 (비활성인데 색이 있으면 눌리는 것처럼 보임)</summary>
+    private void ApplyButtonColors()
+    {
+        _btnStart.BackColor = _btnStart.Enabled ? Color.FromArgb(220, 245, 225) : SystemColors.Control;
+        _btnStop.BackColor = _btnStop.Enabled ? Color.FromArgb(250, 225, 225) : SystemColors.Control;
     }
 
     private async Task RunAsync(Func<Task<bool>> action)
     {
         foreach (var b in new[] { _btnStart, _btnStop, _btnRestart, _btnBackup, _btnUpdate }) b.Enabled = false;
+        ApplyButtonColors();
         try { await action(); }
         catch (Exception ex) { _uiLog.Error("UI", "작업 실행 오류", ex); }
         finally { _rendered = null; Render(); }

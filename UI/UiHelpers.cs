@@ -17,9 +17,33 @@ public sealed class LogView : RichTextBox
         BackColor = Color.FromArgb(24, 24, 28);
         ForeColor = Color.Gainsboro;
         Font = new Font("Consolas", 9.5f);
-        WordWrap = false;
+        WordWrap = true; // 긴 로그(경로, SteamCMD 출력 등)가 잘리지 않도록 기본 줄바꿈
         BorderStyle = BorderStyle.None;
         DetectUrls = false;
+        ContextMenuStrip = BuildMenu();
+    }
+
+    private ContextMenuStrip BuildMenu()
+    {
+        var menu = new ContextMenuStrip();
+        var wrap = new ToolStripMenuItem("줄바꿈") { CheckOnClick = true, Checked = WordWrap };
+        wrap.CheckedChanged += (_, _) =>
+        {
+            WordWrap = wrap.Checked;
+            SelectionStart = TextLength;
+            ScrollToCaret();
+        };
+        var copy = new ToolStripMenuItem("복사", null, (_, _) =>
+        {
+            var text = SelectionLength > 0 ? SelectedText : Text;
+            if (!string.IsNullOrEmpty(text)) Clipboard.SetText(text);
+        });
+        menu.Opening += (_, _) => copy.Text = SelectionLength > 0 ? "선택 영역 복사" : "전체 복사";
+        menu.Items.Add(wrap);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(copy);
+        menu.Items.Add("화면 지우기 (파일 로그는 유지)", null, (_, _) => Clear());
+        return menu;
     }
 
     public void Append(LogEntry e)
