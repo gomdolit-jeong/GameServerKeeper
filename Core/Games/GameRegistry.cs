@@ -2,8 +2,10 @@ using System.ComponentModel;
 using System.Text.Json.Serialization;
 using GameServerKeeper.Core.Config;
 using GameServerKeeper.Core.Logging;
+using GameServerKeeper.Games.CoreKeeper;
 using GameServerKeeper.Games.Generic;
 using GameServerKeeper.Games.Palworld;
+using GameServerKeeper.Games.VRising;
 
 namespace GameServerKeeper.Core.Games;
 
@@ -70,8 +72,8 @@ public static class GameRegistry
     private static readonly List<GameDefinition> Games =
     [
         PalworldGame.Definition,
-        // VRisingGame.Definition,      ← 예: 새 게임은 여기에 추가
-        // CoreKeeperGame.Definition,
+        VRisingGame.Definition,
+        CoreKeeperGame.Definition,
         GenericGame.Definition,
     ];
 
