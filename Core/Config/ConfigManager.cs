@@ -106,6 +106,6 @@ public static class ConfigManager
 
     private static AppConfig CreateDefault() => new()
     {
-        Servers = { PalworldGame.Definition.CreateDefaultProfile() }
+        Servers = { PalworldGame.Definition.CreateProfile(null) }
     };
 }

@@ -1,9 +1,8 @@
 using GameServerKeeper.Core.Logging;
-using GameServerKeeper.Core.Server;
 
 namespace GameServerKeeper.UI;
 
-/// <summary>색상 표시 + 줄 수 제한이 있는 로그 창</summary>
+/// <summary>색상 표시 + 줄 수 제한 + 우클릭 메뉴(줄바꿈/복사/지우기)가 있는 로그 창</summary>
 public sealed class LogView : RichTextBox
 {
     private const int MaxLines = 3000;
@@ -14,7 +13,7 @@ public sealed class LogView : RichTextBox
         _includeScope = includeScope;
         Dock = DockStyle.Fill;
         ReadOnly = true;
-        BackColor = Color.FromArgb(24, 24, 28);
+        BackColor = Theme.LogBg;
         ForeColor = Color.Gainsboro;
         Font = new Font("Consolas", 9.5f);
         WordWrap = true; // 긴 로그(경로, SteamCMD 출력 등)가 잘리지 않도록 기본 줄바꿈
@@ -52,11 +51,11 @@ public sealed class LogView : RichTextBox
         SelectionLength = 0;
         SelectionColor = e.Level switch
         {
-            LogLevel.Error => Color.FromArgb(255, 110, 110),
-            LogLevel.Warn => Color.FromArgb(255, 200, 90),
-            _ when e.Source == "SteamCMD" => Color.FromArgb(140, 180, 220),
-            _ when e.Source == "Player" => Color.FromArgb(140, 220, 150),
-            _ => Color.Gainsboro
+            LogLevel.Error => Color.FromArgb(255, 120, 120),
+            LogLevel.Warn => Color.FromArgb(251, 191, 36),
+            _ when e.Source == "SteamCMD" => Color.FromArgb(125, 170, 230),
+            _ when e.Source == "Player" => Color.FromArgb(110, 220, 150),
+            _ => Color.FromArgb(214, 218, 226)
         };
         AppendText(Logger.FormatForUi(e, _includeScope) + Environment.NewLine);
     }
@@ -80,24 +79,28 @@ public sealed class LogView : RichTextBox
 
 internal static class Ui
 {
-    public static (string Text, Color Color) StateText(ServerState s) => s switch
+    public static string Gb(long bytes) => $"{bytes / 1024.0 / 1024 / 1024:0.0} GB";
+
+    public static string Uptime(TimeSpan up) =>
+        up.TotalDays >= 1 ? $"{(int)up.TotalDays}일 {up.Hours}시간 {up.Minutes}분"
+        : up.TotalHours >= 1 ? $"{up.Hours}시간 {up.Minutes}분"
+        : $"{up.Minutes}분 {up.Seconds}초";
+
+    public static string Relative(DateTime t)
     {
-        ServerState.Running => ("● 실행 중", Color.ForestGreen),
-        ServerState.Starting => ("◐ 시작 중", Color.DarkOrange),
-        ServerState.Stopping => ("◐ 종료 중", Color.DarkOrange),
-        ServerState.Updating => ("⬇ 업데이트 중", Color.SteelBlue),
-        ServerState.BackingUp => ("💾 백업 중", Color.SteelBlue),
-        _ => ("○ 중지됨", Color.Firebrick)
-    };
+        var d = DateTime.Now - t;
+        if (d.TotalMinutes < 1) return "방금 전";
+        if (d.TotalHours < 1) return $"{(int)d.TotalMinutes}분 전";
+        if (d.TotalDays < 1) return $"{(int)d.TotalHours}시간 전";
+        return $"{(int)d.TotalDays}일 전";
+    }
 
-    public static string Gb(long bytes) => $"{bytes / 1024.0 / 1024 / 1024:0.00} GB";
-
-    public static string Uptime(TimeSpan up) => $"{(int)up.TotalDays}일 {up.Hours:00}:{up.Minutes:00}:{up.Seconds:00}";
-
-    public static Button ActionButton(string text) => new()
+    public static string Upcoming(DateTime t)
     {
-        Text = text, AutoSize = true, MinimumSize = new Size(90, 30), Margin = new Padding(3), UseVisualStyleBackColor = true
-    };
+        var d = t - DateTime.Now;
+        var day = t.Date == DateTime.Today ? "오늘" : t.Date == DateTime.Today.AddDays(1) ? "내일" : t.ToString("MM-dd");
+        return d.TotalHours < 1 ? $"{day} {t:HH:mm} ({Math.Max(0, (int)d.TotalMinutes)}분 후)" : $"{day} {t:HH:mm}";
+    }
 
     public static void OpenFolder(string path, IAppLog log)
     {
@@ -109,20 +112,18 @@ internal static class Ui
         catch (Exception ex) { log.Warn("UI", $"폴더 열기 실패: {ex.Message}"); }
     }
 
-    public static string? Prompt(IWin32Window owner, Font font, string title, string caption)
+    /// <summary>카드 위쪽 제목 줄</summary>
+    public static Control CardHeader(string title, string glyph, Color? fg = null, Color? bg = null)
     {
-        using var f = new Form
+        var color = fg ?? Theme.Text;
+        var panel = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = bg ?? Theme.Surface };
+        panel.Paint += (_, e) =>
         {
-            Text = title, FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterParent,
-            ClientSize = new Size(440, 110), MinimizeBox = false, MaximizeBox = false, Font = font, ShowInTaskbar = false
+            TextRenderer.DrawText(e.Graphics, glyph, Theme.IconFont(10.5f), new Rectangle(0, 0, 20, 26), color,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(e.Graphics, title, Theme.Font(10.5f, FontStyle.Bold), new Rectangle(26, 0, panel.Width - 26, 26), color,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
         };
-        var lbl = new Label { Text = caption, Left = 12, Top = 12, AutoSize = true };
-        var txt = new TextBox { Left = 12, Top = 36, Width = 416 };
-        var ok = new Button { Text = "확인", DialogResult = DialogResult.OK, Left = 272, Top = 70, Width = 75 };
-        var cancel = new Button { Text = "취소", DialogResult = DialogResult.Cancel, Left = 353, Top = 70, Width = 75 };
-        f.Controls.AddRange([lbl, txt, ok, cancel]);
-        f.AcceptButton = ok;
-        f.CancelButton = cancel;
-        return f.ShowDialog(owner) == DialogResult.OK ? txt.Text.Trim() : null;
+        return panel;
     }
 }

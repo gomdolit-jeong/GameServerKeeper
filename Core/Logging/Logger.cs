@@ -14,6 +14,13 @@ public interface IAppLog
     void Write(LogLevel level, string source, string message, Exception? ex = null);
 }
 
+/// <summary>아무것도 기록하지 않는 로거 (설정 화면에서 임시 어댑터를 만들 때 등)</summary>
+public sealed class NullLog : IAppLog
+{
+    public static readonly NullLog Instance = new();
+    public void Write(LogLevel level, string source, string message, Exception? ex = null) { }
+}
+
 public static class AppLogExtensions
 {
     public static void Debug(this IAppLog log, string source, string message) => log.Write(LogLevel.Debug, source, message);

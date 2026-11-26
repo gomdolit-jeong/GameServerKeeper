@@ -22,7 +22,8 @@ public sealed record ServerStatus(
     TimeSpan? Uptime,
     DateTime? NextScheduledRestart,
     DateTime? LastBackup,
-    string? CurrentOperation);
+    string? CurrentOperation,
+    DateTime? StartTime);
 
 /// <summary>
 /// 서버 1대의 운영 오케스트레이터 (게임 중립).
@@ -626,7 +627,8 @@ public sealed class ServerInstance : IDisposable
             start.HasValue ? DateTime.Now - start.Value : null,
             GetNextScheduledRestart(),
             _backup.LastBackupTime,
-            _currentOp);
+            _currentOp,
+            start);
         LatestStatus = status;
         try { StatusChanged?.Invoke(status); } catch { /* UI 예외 무시 */ }
     }

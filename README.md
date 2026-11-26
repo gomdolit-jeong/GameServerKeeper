@@ -35,18 +35,35 @@ GameServerKeeper/
 ├─ Games/
 │  ├─ Palworld/                  PalworldSettings, PalworldAdapter, PalworldRestClient
 │  └─ Generic/                   GenericSettings, GenericAdapter
-└─ UI/                           MainForm(전체 현황 + 서버별 탭), ServerPanel, Dialogs
+└─ UI/
+   ├─ MainForm.cs                사이드바(전체 현황 + 서버 목록) + 내용 영역, 트레이
+   ├─ OverviewPage.cs            요약 타일 + 서버 카드 + 전체 로그
+   ├─ ServerPanel.cs             서버 1대 화면 (제어 버튼, 상태 타일, 접속자, 로그)
+   ├─ SettingsForm.cs            설정 화면 (설정 클래스의 특성으로 자동 생성)
+   ├─ Dialogs.cs                 서버 추가(실행 파일로 게임 자동 인식), 공지 입력
+   ├─ Controls.cs / Theme.cs     버튼·스위치·카드·타일 등 공통 컨트롤과 색상·아이콘
+   └─ UiHelpers.cs               로그 창, 표시 형식 도우미
 ```
 
-## 새 게임 추가 방법
-1. `Games/{게임}/` 에 `GameSettings` 파생 클래스 작성 (그 게임만의 설정: RCON 포트/비밀번호 등)
+## 서버 추가 흐름
+1. **서버 추가** → 서버 실행 파일과 이름만 입력
+2. 실행 파일 이름으로 게임을 **자동 인식** (예: `PalServer.exe` → Palworld). 모르는 파일이면 **범용**
+3. 인식한 게임의 기본값(App ID, 세이브·백업 폴더 등)이 채워진 설정 화면에서 확인 후 저장
+4. 인식이 틀렸으면 설정 화면의 **게임 종류**에서 변경 (서버가 꺼져 있을 때만 가능)
+
+## 새 게임 추가 방법 (예: V Rising, Core Keeper)
+1. `Games/{게임}/` 에 `GameSettings` 파생 클래스 작성 — 그 게임만의 설정 (RCON 포트/비밀번호 등)
+   - 속성에 `DisplayName` / `Description` / `Range` / `PathEditor` 특성을 달면 **설정 화면·툴팁이 자동으로 생성**됩니다.
 2. `GameServerAdapterBase` 파생 어댑터 작성 — 지원하는 것만 override
    - `Capabilities` : PlayerList / Announce / Save / GracefulShutdown 중 지원하는 것
    - `TrackedProcessName` : 런처가 자식 프로세스를 띄우면 그 이름
    - `GetPlayersAsync`, `AnnounceAsync`, `SaveAsync`, `RequestShutdownAsync`, `CheckConfiguration`
-3. `GameDefinition` (Id, 이름, 기본 프로필) 을 만들고 `GameRegistry` 목록에 한 줄 추가
+3. `GameDefinition` 작성 후 `GameRegistry` 목록에 한 줄 추가 (범용보다 앞에)
+   - `ExeFileNames` : 자동 인식할 실행 파일 이름 (예: `["VRisingServer.exe"]`)
+   - `CreateProfile(exePath)` : 고른 실행 파일 위치 기준으로 설치·세이브·백업 폴더 등 기본값 채우기
+   - `DefaultAppId`, `Description`(서버 추가 화면 설명), `SettingsNote`(설정 화면 안내)
 
-지원하지 않는 기능은 공통 로직이 자동으로 건너뜁니다.
+지원하지 않는 기능은 공통 로직과 설정 화면이 자동으로 건너뜁니다 (관련 설정 항목도 숨김).
 (예: 접속자 조회 불가 → 메모리 재시작 시 0명 판단 불가하므로 공지 기능이 있으면 항상 카운트다운)
 전용 어댑터를 만들기 전에도 **범용** 타입으로 등록하면 프로세스 감시·크래시 복구·메모리 재시작·백업·업데이트·정기 재시작은 바로 쓸 수 있습니다.
 

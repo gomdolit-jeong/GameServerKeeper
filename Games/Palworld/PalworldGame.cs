@@ -11,14 +11,16 @@ public sealed class PalworldSettings : GameSettings
 {
     public override string GameId => PalworldGame.Id;
 
-    [DisplayName("REST API 호스트")]
+    [DisplayName("REST API 주소"),
+     Description("팰월드 서버의 REST API 주소예요. 서버가 같은 PC에서 돌아가면 127.0.0.1 그대로 두세요.")]
     public string RestApiHost { get; set; } = "127.0.0.1";
 
-    [DisplayName("REST API 포트"), Description("PalWorldSettings.ini 의 RESTAPIPort 와 같아야 함. 서버마다 달라야 함")]
+    [DisplayName("REST API 포트"), System.ComponentModel.DataAnnotations.Range(1, 65535),
+     Description("PalWorldSettings.ini의 RESTAPIPort와 같아야 해요. 서버를 여러 대 운영하면 서버마다 달라야 해요.")]
     public int RestApiPort { get; set; } = 8212;
 
-    [DisplayName("AdminPassword"), Description("PalWorldSettings.ini 의 AdminPassword (Basic Auth: admin:{AdminPassword})"),
-     PasswordPropertyText(true)]
+    [DisplayName("관리자 비밀번호 (AdminPassword)"), PasswordPropertyText(true),
+     Description("PalWorldSettings.ini의 AdminPassword와 같아야 해요. 공지·저장·종료 같은 관리자 명령을 보낼 때 인증에 쓰여요.")]
     public string AdminPassword { get; set; } = "";
 
     public override IEnumerable<string> Validate()
@@ -108,20 +110,41 @@ public static class PalworldGame
     {
         GameId = Id,
         DisplayName = "Palworld",
+        Description = "REST API로 접속자 조회·인게임 공지·월드 저장·정상 종료를 모두 지원해요.",
+        SettingsNote = "PalWorldSettings.ini에서 RESTAPIEnabled=True로 켜고, 포트·관리자 비밀번호를 아래와 똑같이 맞춰 주세요.",
         SettingsType = typeof(PalworldSettings),
         CreateAdapter = log => new PalworldAdapter(log),
-        CreateDefaultProfile = () => new ServerProfile
+        // 런처(PalServer.exe)뿐 아니라 실제 서버 exe 를 골라도 팰월드로 인식
+        ExeFileNames = ["PalServer.exe", "PalServer-Win64-Shipping-Cmd.exe", "PalServer-Win64-Shipping.exe"],
+        DefaultAppId = 2394010,
+        CreateProfile = CreateProfile,
+    };
+
+    private static ServerProfile CreateProfile(string? exePath)
+    {
+        var install = @"D:\Steam_Dedicated_Server\Palworld";
+        if (!string.IsNullOrWhiteSpace(exePath))
+        {
+            var dir = Path.GetDirectoryName(Path.GetFullPath(exePath))!;
+            // Pal\Binaries\Win64\PalServer-Win64-Shipping-Cmd.exe 를 고른 경우 → 설치 폴더(3단계 위)
+            if (Path.GetFileName(exePath).StartsWith("PalServer-Win64", StringComparison.OrdinalIgnoreCase))
+                dir = Path.GetFullPath(Path.Combine(dir, "..", "..", ".."));
+            install = dir.TrimEnd('\\');
+        }
+        var parent = Path.GetDirectoryName(install) ?? install;
+
+        return new ServerProfile
         {
             Name = "Palworld",
             Game = new PalworldSettings(),
             AppId = 2394010,
-            ServerInstallDir = @"D:\Steam_Dedicated_Server\Palworld",
-            ServerExePath = @"D:\Steam_Dedicated_Server\Palworld\PalServer.exe",
+            ServerInstallDir = install,
+            ServerExePath = Path.Combine(install, "PalServer.exe"),
             ServerArguments = "-port=8211 -useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS",
-            SaveDir = @"D:\Steam_Dedicated_Server\Palworld\Pal\Saved",
-            BackupDir = @"D:\Steam_Dedicated_Server\Backups",
+            SaveDir = Path.Combine(install, "Pal", "Saved"),
+            BackupDir = Path.Combine(parent, "Backups"),
             BackupPrefix = "Palworld_Backup",
             MemoryThresholdGB = 12.0,
-        }
-    };
+        };
+    }
 }

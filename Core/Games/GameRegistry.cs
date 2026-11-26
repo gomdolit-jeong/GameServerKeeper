@@ -28,29 +28,62 @@ public sealed class GameDefinition
     /// <summary>config.json 판별자. 한 번 정하면 바꾸지 말 것.</summary>
     public required string GameId { get; init; }
     public required string DisplayName { get; init; }
+    /// <summary>"서버 추가" 화면의 게임 설명</summary>
+    public string Description { get; init; } = "";
+    /// <summary>서버 설정 화면 상단 안내 문구</summary>
+    public string SettingsNote { get; init; } = "";
     /// <summary><see cref="GameSettings"/> 파생 타입</summary>
     public required Type SettingsType { get; init; }
     public required Func<IAppLog, IGameServerAdapter> CreateAdapter { get; init; }
-    /// <summary>"서버 추가" 시 채워질 기본 프로필</summary>
-    public required Func<ServerProfile> CreateDefaultProfile { get; init; }
+
+    /// <summary>
+    /// 자동 감지용 실행 파일 이름 (예: "PalServer.exe").
+    /// "서버 추가"에서 사용자가 고른 실행 파일 이름이 여기에 있으면 이 게임으로 인식한다.
+    /// </summary>
+    public string[] ExeFileNames { get; init; } = [];
+
+    /// <summary>게임 종류를 이 게임으로 바꿀 때 App ID 가 비어 있으면 채울 값 (스팀 게임이 아니면 0)</summary>
+    public int DefaultAppId { get; init; }
+
+    /// <summary>
+    /// 기본 프로필 생성. exePath 가 있으면 그 위치를 기준으로 설치·세이브·백업 폴더 등을 채운다.
+    /// (null 이면 게임의 일반적인 기본값)
+    /// </summary>
+    public required Func<string?, ServerProfile> CreateProfile { get; init; }
+
+    public bool MatchesExe(string exePath)
+    {
+        var name = Path.GetFileName(exePath.Trim().Trim('"'));
+        return ExeFileNames.Any(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
+    }
 
     public override string ToString() => DisplayName;
 }
 
 /// <summary>
 /// 지원 게임 목록.
-/// ▶ 새 게임 추가 방법: Games/{게임}/ 폴더에 Settings + Adapter + Definition 을 만들고 아래 목록에 한 줄 추가.
+/// ▶ 새 게임 추가 방법: Games/{게임}/ 폴더에 Settings + Adapter + Definition(ExeFileNames, CreateProfile 포함)을
+///   만들고 아래 목록에 한 줄 추가. 범용(Generic)은 자동 감지 실패 시 기본값이므로 항상 마지막에 둔다.
 /// </summary>
 public static class GameRegistry
 {
     private static readonly List<GameDefinition> Games =
     [
         PalworldGame.Definition,
+        // VRisingGame.Definition,      ← 예: 새 게임은 여기에 추가
+        // CoreKeeperGame.Definition,
         GenericGame.Definition,
-        // ValheimGame.Definition,   ← 예: 새 게임은 여기에 추가
     ];
 
     public static IReadOnlyList<GameDefinition> All => Games;
+
+    public static GameDefinition Generic => GenericGame.Definition;
+
+    /// <summary>실행 파일로 게임 자동 감지. 모르는 파일이면 범용.</summary>
+    public static GameDefinition Detect(string? exePath) =>
+        string.IsNullOrWhiteSpace(exePath)
+            ? Generic
+            : Games.FirstOrDefault(g => g.MatchesExe(exePath)) ?? Generic;
 
     public static GameDefinition? Find(string gameId) =>
         Games.FirstOrDefault(g => string.Equals(g.GameId, gameId, StringComparison.OrdinalIgnoreCase));

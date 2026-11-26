@@ -66,10 +66,30 @@ public sealed class ServerManager : IDisposable
     public void UpdateServer(ServerProfile updated)
     {
         var idx = _config.Servers.FindIndex(s => s.Id == updated.Id);
-        if (idx < 0) throw new InvalidOperationException("존재하지 않는 서버입니다.");
+        var instance = Find(updated.Id);
+        if (idx < 0 || instance == null) throw new InvalidOperationException("존재하지 않는 서버입니다.");
+
+        bool gameChanged = !string.Equals(instance.Game.GameId, updated.GameId, StringComparison.OrdinalIgnoreCase);
+        if (gameChanged && (instance.IsServerRunning || instance.IsBusy))
+            throw new InvalidOperationException("게임 종류를 바꾸려면 서버를 먼저 종료하세요.");
+
         _config.Servers[idx] = updated;
         Save();
-        Find(updated.Id)?.ApplySettings(updated, _config);
+
+        if (gameChanged)
+        {
+            // 게임 어댑터는 인스턴스에 묶여 있으므로 같은 Id 로 새로 만든다
+            int pos = _servers.IndexOf(instance);
+            instance.Dispose();
+            var replacement = new ServerInstance(updated, _config, _log);
+            _servers[pos] = replacement;
+            if (_initialized) replacement.Initialize();
+            _log.Info(Src, $"게임 종류 변경: {updated.Name} → {replacement.Game.DisplayName}");
+        }
+        else
+        {
+            instance.ApplySettings(updated, _config);
+        }
         ServersChanged?.Invoke();
     }
 
