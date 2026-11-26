@@ -89,7 +89,7 @@ public sealed class ProcessManager : IDisposable
             return false;
         }
 
-        _log.Info(Src, $"{Path.GetFileName(exePath)} 실행됨 (PID {launcher.Id}) {args}");
+        _log.Info(Src, $"{Path.GetFileName(exePath)} 실행됨 (PID {launcher.Id}) {MaskSecrets(args)}");
 
         // 실행 파일 자체가 서버인 경우
         if (string.Equals(SafeName(launcher), trackedProcessName, StringComparison.OrdinalIgnoreCase))
@@ -202,6 +202,11 @@ public sealed class ProcessManager : IDisposable
     }
 
     // ───────────── 내부 ─────────────
+
+    /// <summary>로그에 비밀번호가 남지 않도록 -xxxPassword "값" / -password 값 형태를 가림</summary>
+    public static string MaskSecrets(string args) =>
+        System.Text.RegularExpressions.Regex.Replace(args ?? "", @"(-\w*password\w*\s+)(""[^""]*""|\S+)", "$1****",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     private void Attach(Process p)
     {

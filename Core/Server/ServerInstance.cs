@@ -86,6 +86,7 @@ public sealed class ServerInstance : IDisposable
     public ServerProfile Profile => _profile;
     public GameDefinition Game => _game;
     public GameCapabilities Capabilities => _adapter.Capabilities;
+    public bool AnnounceSupportsUnicode => _adapter.AnnounceSupportsUnicode;
     public ServerState State => _state;
     public bool IsServerRunning => _proc.IsRunning;
     public bool IsBusy => _currentOp != null;
@@ -192,7 +193,7 @@ public sealed class ServerInstance : IDisposable
 
         SetState(ServerState.Starting);
         _log.Info(Src, "서버 시작 중...");
-        var ok = await _proc.StartAsync(_profile.ServerExePath, _profile.ServerArguments, _adapter.TrackedProcessName,
+        var ok = await _proc.StartAsync(_profile.ServerExePath, _adapter.BuildArguments(_profile.ServerArguments), _adapter.TrackedProcessName,
             _profile.HideServerConsole, TimeSpan.FromSeconds(120), ct).ConfigureAwait(false);
 
         if (!ok)
@@ -320,7 +321,9 @@ public sealed class ServerInstance : IDisposable
             int next = i + 1 < marks.Count ? marks[i + 1] : 0;
             await Task.Delay(TimeSpan.FromSeconds(marks[i] - next), ct).ConfigureAwait(false);
         }
-        await _adapter.AnnounceAsync("월드를 저장하고 서버를 종료합니다.", ct).ConfigureAwait(false);
+        await _adapter.AnnounceAsync(_adapter.AnnounceSupportsUnicode
+            ? "월드를 저장하고 서버를 종료합니다."
+            : "Saving the world and shutting down the server.", ct).ConfigureAwait(false);
     }
 
     private async Task<bool> RestartCoreAsync(string reason, bool countdown, bool backup, bool update, CancellationToken ct)

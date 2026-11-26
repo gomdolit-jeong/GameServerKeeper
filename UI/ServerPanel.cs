@@ -167,7 +167,9 @@ public sealed class ServerPanel : UserControl
         _btnUpdate.Click += async (_, _) => await RunAsync(Server.UpdateNowAsync);
         _btnAnnounce.Click += async (_, _) =>
         {
-            var msg = PromptDialog.Show(FindForm()!, "인게임 공지", $"{Server.Name}에 접속한 플레이어에게 보낼 메시지를 입력하세요.");
+            var caption = $"{Server.Name}에 접속한 플레이어에게 보낼 메시지를 입력하세요." +
+                          (Server.AnnounceSupportsUnicode ? "" : "\n이 게임은 한글이 깨져서 영어로 입력해 주세요.");
+            var msg = PromptDialog.Show(FindForm()!, "인게임 공지", caption);
             if (string.IsNullOrWhiteSpace(msg)) return;
             var ok = await Server.AnnounceAsync(msg);
             _uiLog.Info("UI", ok ? $"[{Server.Name}] 공지 전송: {msg}" : $"[{Server.Name}] 공지 전송 실패");

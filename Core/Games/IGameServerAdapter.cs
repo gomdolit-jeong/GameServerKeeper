@@ -51,6 +51,18 @@ public interface IGameServerAdapter : IDisposable
 
     /// <summary>시작 시 게임 설정 파일 점검. 경고 메시지 목록 반환.</summary>
     IEnumerable<string> CheckConfiguration();
+
+    /// <summary>
+    /// 실제 실행 인자. 사용자가 적은 실행 인자에 게임 전용 설정에서 나온 인자를 덧붙일 때 사용
+    /// (예: V Rising RCON 포트·비밀번호). 기본은 그대로 반환.
+    /// </summary>
+    string BuildArguments(string baseArguments);
+
+    /// <summary>
+    /// 인게임 공지에 한글 등 비ASCII 문자를 쓸 수 있는지.
+    /// false 면 공통 로직이 보내는 고정 문구를 영어로 보낸다 (예: V Rising RCON 은 UTF-8 을 해석하지 못함).
+    /// </summary>
+    bool AnnounceSupportsUnicode { get; }
 }
 
 /// <summary>기본 구현: 전부 "지원 안 함". 게임 어댑터는 필요한 것만 override 한다.</summary>
@@ -77,6 +89,10 @@ public abstract class GameServerAdapterBase : IGameServerAdapter
     public virtual Task<bool> RequestShutdownAsync(int serverPid, CancellationToken ct) => Task.FromResult(false);
 
     public virtual IEnumerable<string> CheckConfiguration() => [];
+
+    public virtual string BuildArguments(string baseArguments) => baseArguments;
+
+    public virtual bool AnnounceSupportsUnicode => true;
 
     public virtual void Dispose() { }
 }
