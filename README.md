@@ -1,7 +1,7 @@
-# GameServerKeeper (C# .NET 8 WinForms)
+# GameServerKeeper (C# .NET 8 WPF · MVVM)
 
 여러 데디케이트 서버(게임 종류 무관)를 한 프로그램에서 운영하는 매니저.
-현재 지원: **Palworld** (REST API 연동), **범용** (전용 연동 없는 아무 서버).
+현재 지원: **Palworld** (REST API 연동), **V Rising** (RCON 공지), **Core Keeper**, **범용** (전용 연동 없는 아무 서버).
 
 ## 빌드 / 배포
 ```powershell
@@ -13,8 +13,8 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 ## 구조
 ```
 GameServerKeeper/
-├─ Program.cs
-├─ Core/                         ← 게임 중립 (새 게임을 추가해도 수정 불필요)
+├─ App.xaml(.cs)                 시작점: Core → Services → ViewModel → View 조립, 중복 실행 방지
+├─ Core/                         ← 게임 중립 (새 게임을 추가해도 수정 불필요, UI 를 모름)
 │  ├─ Logging/Logger.cs          UI + 일별 파일 로그, 서버별 스코프 로거
 │  ├─ Config/
 │  │  ├─ AppConfig.cs            전역 설정 + 서버 목록 + 서버 간 충돌 검사
@@ -34,16 +34,31 @@ GameServerKeeper/
 │     └─ ServerManager.cs        서버 추가/편집/삭제, 전체 종료
 ├─ Games/
 │  ├─ Palworld/                  PalworldSettings, PalworldAdapter, PalworldRestClient
+│  ├─ VRising/                   VRisingSettings(RCON), VRisingAdapter
+│  ├─ CoreKeeper/                CoreKeeperSettings, CoreKeeperAdapter
 │  └─ Generic/                   GenericSettings, GenericAdapter
-└─ UI/
-   ├─ MainForm.cs                사이드바(전체 현황 + 서버 목록) + 내용 영역, 트레이
-   ├─ OverviewPage.cs            요약 타일 + 서버 카드 + 전체 로그
-   ├─ ServerPanel.cs             서버 1대 화면 (제어 버튼, 상태 타일, 접속자, 로그)
-   ├─ SettingsForm.cs            설정 화면 (설정 클래스의 특성으로 자동 생성)
-   ├─ Dialogs.cs                 서버 추가(실행 파일로 게임 자동 인식), 공지 입력
-   ├─ Controls.cs / Theme.cs     버튼·스위치·카드·타일 등 공통 컨트롤과 색상·아이콘
-   └─ UiHelpers.cs               로그 창, 표시 형식 도우미
+├─ ViewModels/                   ← 화면 상태와 명령 (WPF 를 모름, CommunityToolkit.Mvvm)
+│  ├─ MainViewModel.cs           사이드바·페이지 전환, 로그 분배, 서버 추가/편집/삭제, 종료 확인
+│  ├─ OverviewViewModel.cs       전체 현황 요약 타일 + 서버 카드 목록
+│  ├─ ServerViewModel.cs         서버 1대 (상세 화면·카드·사이드바 공용): 상태 반영 + 시작/종료/백업 명령
+│  ├─ SettingsViewModel.cs       설정 화면 (설정 클래스의 특성을 읽어 항목 ViewModel 자동 생성)
+│  ├─ DialogViewModels.cs        서버 추가(실행 파일로 게임 자동 인식), 입력, 선택 대화상자
+│  ├─ LogViewModel.cs            로그 창 (줄 수 제한, 줄바꿈, 복사, 지우기)
+│  └─ Common.cs                  Tone(의미 색), StatInfo, 아이콘 글리프, 표시 형식
+├─ Services/                     ← ViewModel 이 창을 직접 만들지 않도록 하는 경계
+│  ├─ IDialogService.cs          대화상자·파일 선택 인터페이스 (+ IShellService)
+│  ├─ DialogService.cs           WPF 구현
+│  ├─ ShellService.cs            탐색기 열기, 클립보드
+│  └─ TrayService.cs             트레이 아이콘·메뉴 (WinForms NotifyIcon 은 여기서만 사용)
+├─ Views/                        ← XAML (코드 비하인드는 창 동작·스크롤 같은 순수 화면 동작만)
+│  ├─ MainWindow / OverviewView / ServerView
+│  ├─ SettingsWindow / AddServerWindow / PromptWindow / ChoiceWindow
+│  ├─ Controls/                  StatTile, StatusPill, LogView
+│  └─ Converters.cs / Attached.cs / AppIcon.cs
+└─ Themes/Theme.xaml             색상·글꼴·버튼·스위치·입력·스크롤바·툴팁 스타일
 ```
+
+화면 색은 ViewModel 이 정하지 않고 `Tone`(Success/Warning/...)만 넘기며, 실제 색은 `Views/Converters.cs` 와 `Themes/Theme.xaml` 에서 정합니다.
 
 ## 서버 추가 흐름
 1. **서버 추가** → 서버 실행 파일과 이름만 입력

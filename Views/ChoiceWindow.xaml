@@ -1,0 +1,28 @@
+<Window x:Class="GameServerKeeper.Views.ChoiceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Title}" Width="480" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="White"
+        FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{StaticResource TextBrush}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="24,20,24,22">
+        <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold"/>
+        <TextBlock Text="{Binding Message}" Style="{StaticResource Muted}" Margin="1,8,0,16" TextWrapping="Wrap" LineHeight="20"/>
+        <ItemsControl ItemsSource="{Binding Choices}" Focusable="False">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Style="{Binding Kind, Converter={StaticResource ChoiceStyle}}" Command="{Binding Command}"
+                            AutomationProperties.Name="{Binding Label}"
+                            HorizontalContentAlignment="Left" Padding="16,10" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Label}" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding Description}" FontWeight="Normal" FontSize="12" Opacity="0.85"
+                                       Margin="0,3,0,0" TextWrapping="Wrap"
+                                       Visibility="{Binding Description, Converter={StaticResource NullVis}}"/>
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</Window>

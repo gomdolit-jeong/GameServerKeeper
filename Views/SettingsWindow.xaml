@@ -1,0 +1,156 @@
+<Window x:Class="GameServerKeeper.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:GameServerKeeper.Views"
+        xmlns:vm="clr-namespace:GameServerKeeper.ViewModels"
+        Title="{Binding Title}" Width="980" Height="760" MinWidth="760" MinHeight="520"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="White"
+        FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{StaticResource TextBrush}"
+        TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <!-- 항목 종류별 편집기 -->
+        <DataTemplate DataType="{x:Type vm:BoolSettingItem}">
+            <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Value}" HorizontalAlignment="Left"/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:NumberSettingItem}">
+            <StackPanel Orientation="Horizontal">
+                <TextBox Width="160" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasError}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}"/>
+                                    <Setter Property="Background" Value="#FFF7F7"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+                <TextBlock Text="{Binding RangeText}" Style="{StaticResource Muted}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:EnumSettingItem}">
+            <ComboBox ItemsSource="{Binding Options}" DisplayMemberPath="Text" SelectedItem="{Binding Selected}"/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:GameSelectorItem}">
+            <ComboBox ItemsSource="{Binding Games}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedGame}"
+                      IsEnabled="{Binding CanChange}"/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:TextSettingItem}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource CompactButton}" Margin="8,0,0,0" Content="찾아보기"
+                        v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Folder}" Command="{Binding BrowseCommand}"
+                        Visibility="{Binding HasBrowse, Converter={StaticResource BoolVis}}"/>
+                <Button DockPanel.Dock="Right" Style="{StaticResource CompactButton}" Margin="8,0,0,0" Padding="10,7"
+                        v:ButtonAssist.Glyph="{x:Static vm:Glyphs.View}" Command="{Binding ToggleRevealCommand}"
+                        Visibility="{Binding IsPassword, Converter={StaticResource BoolVis}}" ToolTip="비밀번호 보기 / 숨기기"/>
+                <Grid>
+                    <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                             Visibility="{Binding ShowPlainText, Converter={StaticResource BoolVis}}"/>
+                    <PasswordBox v:PasswordHelper.Password="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                                 Visibility="{Binding ShowPasswordBox, Converter={StaticResource BoolVis}}"/>
+                </Grid>
+            </DockPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- 머리글 -->
+        <Border DockPanel.Dock="Top" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="28,20,28,18">
+            <DockPanel>
+                <Grid Width="40" Height="40" VerticalAlignment="Top">
+                    <Border CornerRadius="10" Background="{StaticResource LogoBrush}"/>
+                    <TextBlock Style="{StaticResource Icon}" Text="{x:Static vm:Glyphs.Settings}" FontSize="19"
+                               Foreground="White" HorizontalAlignment="Center"/>
+                </Grid>
+                <StackPanel Margin="14,0,0,0">
+                    <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Muted}" Margin="1,5,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- 바닥 -->
+        <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="28,14,20,14">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Content="저장" Style="{StaticResource PrimaryButton}" IsDefault="True" Command="{Binding SaveCommand}"
+                            v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Save}" MinWidth="88"/>
+                    <Button Content="취소" Margin="8,0,0,0" IsCancel="True" Command="{Binding CancelCommand}" MinWidth="80"/>
+                </StackPanel>
+                <TextBlock Text="항목 이름에 마우스를 올리면 자세한 설명이 나와요." Style="{StaticResource Muted}" FontSize="12"
+                           VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <!-- 목차 -->
+        <Border DockPanel.Dock="Left" Width="210" Background="{StaticResource SurfaceAltBrush}" Padding="0,14,0,0">
+            <ListBox x:Name="NavList" ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}"
+                     DisplayMemberPath="Name" Background="Transparent" BorderThickness="0"
+                     ItemContainerStyle="{StaticResource LightNavItem}" SelectionChanged="OnNavSelectionChanged"/>
+        </Border>
+
+        <!-- 본문 -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+
+            <Border Background="{StaticResource DangerSoftBrush}" Padding="32,12"
+                    Visibility="{Binding HasErrors, Converter={StaticResource BoolVis}}">
+                <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" LineHeight="20"/>
+            </Border>
+
+            <ScrollViewer x:Name="Scroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="SectionList" ItemsSource="{Binding Sections}" Margin="32,0,32,32" Focusable="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:SettingSectionViewModel}">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="Bold" Margin="0,28,0,6"/>
+                                <Border Background="{StaticResource InfoSoftBrush}" CornerRadius="6" Padding="10,7" Margin="0,4,0,6"
+                                        HorizontalAlignment="Left" Visibility="{Binding Hint, Converter={StaticResource NullVis}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Icon}" Text="{x:Static vm:Glyphs.Info}" FontSize="13"
+                                                   Foreground="{StaticResource InfoBrush}"/>
+                                        <TextBlock Text="{Binding Hint}" Foreground="{StaticResource InfoBrush}" FontSize="12.5"
+                                                   Margin="8,0,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                                <ItemsControl ItemsSource="{Binding Items}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Visibility="{Binding IsVisible, Converter={StaticResource BoolVis}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="48*"/>
+                                                    <ColumnDefinition Width="52*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Margin="0,14,28,14" ToolTip="{Binding ToolTip}" Background="Transparent">
+                                                    <TextBlock Text="{Binding Display}" FontWeight="Bold" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding Description}" Style="{StaticResource Muted}" FontSize="12"
+                                                               Margin="0,5,0,0" TextWrapping="Wrap" LineHeight="18"
+                                                               Visibility="{Binding Description, Converter={StaticResource NullVis}}"/>
+                                                </StackPanel>
+                                                <ContentControl Grid.Column="1" Content="{Binding}" Margin="0,14" VerticalAlignment="Center"
+                                                                Focusable="False" ToolTip="{Binding ToolTip}"/>
+                                                <Border Grid.Row="1" Grid.ColumnSpan="2" Height="1" Background="{StaticResource BorderBrush}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</Window>

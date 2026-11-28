@@ -1,0 +1,144 @@
+<UserControl x:Class="GameServerKeeper.Views.ServerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:GameServerKeeper.Views"
+             xmlns:c="clr-namespace:GameServerKeeper.Views.Controls"
+             xmlns:vm="clr-namespace:GameServerKeeper.ViewModels">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+
+        <!-- 머리글 -->
+        <DockPanel Margin="0,0,0,16">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,4,0,0">
+                <Button Style="{StaticResource GhostButton}" Content="삭제" Foreground="{StaticResource DangerBrush}"
+                        v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Delete}" Command="{Binding RemoveCommand}"
+                        ToolTip="이 서버를 목록에서 지워요. 서버 파일과 백업은 지우지 않아요."/>
+                <Button Content="서버 설정" Margin="8,0,0,0" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Settings}"
+                        Command="{Binding EditCommand}"
+                        ToolTip="이 서버의 경로·업데이트·크래시·정기 재시작 설정을 바꿔요."/>
+            </StackPanel>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource PageTitle}"/>
+                    <c:StatusPill Text="{Binding StateText}" Tone="{Binding StateTone}" Margin="14,2,0,0"/>
+                </StackPanel>
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Muted}" Margin="2,6,0,0"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- 제어 버튼 -->
+        <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+            <WrapPanel.Resources>
+                <Style TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+                    <Setter Property="Margin" Value="0,0,8,8"/>
+                </Style>
+            </WrapPanel.Resources>
+            <Button Content="시작" Command="{Binding StartCommand}" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Play}" Margin="0,0,8,8"
+                    Style="{StaticResource SuccessButton}"
+                    ToolTip="서버를 켜요. '시작 전 업데이트'가 켜져 있으면 SteamCMD로 최신 버전을 먼저 받아요."/>
+            <Button Content="안전 종료" Command="{Binding StopCommand}" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Stop}" Margin="0,0,8,8"
+                    Style="{StaticResource DangerButton}"
+                    ToolTip="접속자가 있으면 카운트다운 공지 후 월드를 저장하고 정상 종료해요. 시간 안에 안 꺼지면 강제 종료해요."/>
+            <Button Content="재시작" Command="{Binding RestartCommand}" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Restart}"
+                    ToolTip="안전 종료 후 다시 켜요."/>
+            <Button Content="즉시 백업" Command="{Binding BackupCommand}" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Save}"
+                    ToolTip="세이브 폴더를 지금 바로 zip으로 백업해요. 서버가 켜져 있으면 먼저 저장을 요청해요."/>
+            <Button Content="업데이트" Command="{Binding UpdateCommand}" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Download}"
+                    ToolTip="서버가 꺼져 있을 때 SteamCMD로 최신 버전을 받아요."/>
+            <Button Content="공지" Command="{Binding AnnounceCommand}" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Announce}"
+                    Visibility="{Binding ShowAnnounce, Converter={StaticResource BoolVis}}"
+                    ToolTip="접속 중인 플레이어에게 인게임 공지를 보내요."/>
+            <CheckBox Style="{StaticResource ToggleSwitch}" Content="시작 전 업데이트" Margin="8,0,16,8" VerticalAlignment="Center"
+                      IsChecked="{Binding UpdateBeforeStart}" IsEnabled="{Binding CanToggleUpdate}"
+                      ToolTip="켜두면 서버를 시작할 때마다 먼저 업데이트를 확인해요."/>
+            <Button Content="백업 폴더" Style="{StaticResource GhostButton}" Margin="0,0,8,8" Command="{Binding OpenBackupFolderCommand}"
+                    v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Folder}" ToolTip="백업 zip 파일이 있는 폴더를 열어요."/>
+        </WrapPanel>
+
+        <!-- 상태 타일 -->
+        <UniformGrid Grid.Row="2" Rows="1" Columns="6" Margin="0,0,-10,14">
+            <c:StatTile Compact="True" Margin="0,0,10,0" Title="메모리" Glyph="{x:Static vm:Glyphs.Memory}"
+                        Accent="{StaticResource PurpleBrush}" Info="{Binding MemoryStat}"
+                        ToolTip="실제 서버 프로세스가 쓰는 메모리예요. 막대가 기준에 닿으면 안전 재시작해요."/>
+            <c:StatTile Compact="True" Margin="0,0,10,0" Title="접속자" Glyph="{x:Static vm:Glyphs.People}"
+                        Accent="{StaticResource InfoBrush}" Info="{Binding PlayersStat}" ToolTip="지금 접속 중인 플레이어 수예요."/>
+            <c:StatTile Compact="True" Margin="0,0,10,0" Title="가동 시간" Glyph="{x:Static vm:Glyphs.Clock}"
+                        Accent="{StaticResource SuccessBrush}" Info="{Binding UptimeStat}" ToolTip="서버가 마지막으로 켜진 뒤 지난 시간이에요."/>
+            <c:StatTile Compact="True" Margin="0,0,10,0" Title="서버 API" Glyph="{x:Static vm:Glyphs.Globe}"
+                        Accent="{StaticResource SkyBrush}" Info="{Binding ApiStat}"
+                        ToolTip="공지·저장·접속자 조회에 쓰는 서버 관리 API의 연결 상태예요."/>
+            <c:StatTile Compact="True" Margin="0,0,10,0" Title="다음 정기 재시작" Glyph="{x:Static vm:Glyphs.Calendar}"
+                        Accent="{StaticResource WarningBrush}" Info="{Binding NextRestartStat}"
+                        ToolTip="다음에 자동으로 안전 종료 → 백업 → 업데이트 → 재시작할 시각이에요."/>
+            <c:StatTile Compact="True" Margin="0,0,10,0" Title="마지막 백업" Glyph="{x:Static vm:Glyphs.History}"
+                        Accent="{StaticResource TealBrush}" Info="{Binding LastBackupStat}" ToolTip="가장 최근에 만든 백업이에요."/>
+        </UniformGrid>
+
+        <!-- 접속자 | 로그 -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400" MinWidth="260"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition MinWidth="320"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Style="{StaticResource Card}" Padding="16,12">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Style="{StaticResource Icon}" Text="{x:Static vm:Glyphs.People}" FontSize="14"/>
+                        <TextBlock Text="접속자" Style="{StaticResource CardTitle}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                    <Grid>
+                        <ListView ItemsSource="{Binding Players}" BorderThickness="0" Background="Transparent"
+                                  Visibility="{Binding HasPlayerRows, Converter={StaticResource BoolVis}}">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="0,4"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.View>
+                                <GridView ColumnHeaderContainerStyle="{StaticResource PlainHeader}">
+                                    <GridViewColumn Header="이름" Width="150" DisplayMemberBinding="{Binding Name}"/>
+                                    <GridViewColumn Header="레벨" Width="56">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate><TextBlock Text="{Binding Level}" HorizontalAlignment="Right"/></DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="핑" Width="56">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate><TextBlock Text="{Binding Ping}" HorizontalAlignment="Right"/></DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Id" Width="130" DisplayMemberBinding="{Binding Id}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                        <TextBlock Text="{Binding EmptyPlayersText}" Foreground="{StaticResource TextFaintBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                                   Visibility="{Binding HasPlayerRows, Converter={StaticResource BoolVis}, ConverterParameter=invert}"/>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="14" HorizontalAlignment="Stretch" Background="Transparent"
+                          ResizeBehavior="PreviousAndNext" Cursor="SizeWE" Focusable="False"/>
+
+            <Border Grid.Column="2" Style="{StaticResource DarkCard}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Style="{StaticResource Icon}" Text="{x:Static vm:Glyphs.Document}" FontSize="14"
+                                   Foreground="{StaticResource LogTextBrush}"/>
+                        <TextBlock Text="서버 로그" Style="{StaticResource CardTitle}" Margin="8,0,0,0" Foreground="{StaticResource LogTextBrush}"/>
+                    </StackPanel>
+                    <c:LogView DataContext="{Binding Log}"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

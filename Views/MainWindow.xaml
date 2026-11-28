@@ -1,0 +1,94 @@
+<Window x:Class="GameServerKeeper.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:GameServerKeeper.Views"
+        xmlns:vm="clr-namespace:GameServerKeeper.ViewModels"
+        Title="{Binding WindowTitle}" Width="1360" Height="840" MinWidth="1100" MinHeight="680"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource BgBrush}"
+        FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{StaticResource TextBrush}"
+        TextOptions.TextFormattingMode="Display"
+        IsEnabled="{Binding IsShuttingDown, Converter={StaticResource InverseBool}}">
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type vm:OverviewViewModel}">
+            <v:OverviewView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ServerViewModel}">
+            <v:ServerView/>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═════════════ 사이드바 ═════════════ -->
+        <Grid Background="{StaticResource SidebarBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Orientation="Horizontal" Margin="20,22,20,20">
+                <Grid Width="40" Height="40">
+                    <Border CornerRadius="10" Background="{StaticResource LogoBrush}"/>
+                    <TextBlock Style="{StaticResource Icon}" Text="{x:Static vm:Glyphs.Game}" FontSize="20"
+                               Foreground="White" HorizontalAlignment="Center"/>
+                </Grid>
+                <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="GameServerKeeper" Foreground="White" FontSize="15" FontWeight="Bold"/>
+                    <TextBlock Text="데디케이트 서버 관리" Foreground="{StaticResource SidebarMutedBrush}" FontSize="11.5" Margin="1,2,0,0"/>
+                </StackPanel>
+            </StackPanel>
+
+            <Button Grid.Row="1" Style="{StaticResource SidebarNavButton}" Content="전체 현황"
+                    v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Home}"
+                    v:ButtonAssist.IsSelected="{Binding IsOverviewSelected}"
+                    Command="{Binding ShowOverviewCommand}" ToolTip="모든 서버의 상태를 한눈에 봐요."/>
+
+            <TextBlock Grid.Row="2" Text="{Binding ServerSectionTitle}" Foreground="{StaticResource SidebarMutedBrush}"
+                       FontSize="11.5" FontWeight="Bold" Margin="22,16,0,6"/>
+
+            <ListBox Grid.Row="3" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
+                     Background="Transparent" BorderThickness="0" Padding="0"
+                     ItemContainerStyle="{StaticResource SidebarListItem}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:ServerViewModel}">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Right" CornerRadius="9" Padding="8,2" VerticalAlignment="Center" Background="#2F3A52"
+                                    Visibility="{Binding PlayerBadge, Converter={StaticResource NullVis}}">
+                                <TextBlock Text="{Binding PlayerBadge}" Foreground="{StaticResource SidebarTextBrush}" FontSize="11" FontWeight="SemiBold"/>
+                            </Border>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource SidebarTextBrush}" FontSize="13.5"
+                                           FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding NavStatus}" FontSize="11.5" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                           Foreground="{Binding NavTone, Converter={StaticResource ToneBrush}, ConverterParameter=dark}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Border Grid.Row="4" BorderBrush="{StaticResource SidebarHoverBrush}" BorderThickness="0,1,0,0" Padding="0,10">
+                <StackPanel>
+                    <Button Style="{StaticResource SidebarNavButton}" Content="서버 추가" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Add}"
+                            Command="{Binding AddServerCommand}" ToolTip="새 데디 서버를 등록해요."/>
+                    <Button Style="{StaticResource SidebarNavButton}" Content="전역 설정" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Settings}"
+                            Command="{Binding EditGlobalCommand}"
+                            ToolTip="SteamCMD 경로, 디스코드 알림, 트레이 동작처럼 모든 서버에 공통인 설정이에요."/>
+                    <Button Style="{StaticResource SidebarNavButton}" Content="로그 폴더" v:ButtonAssist.Glyph="{x:Static vm:Glyphs.Folder}"
+                            Command="{Binding OpenLogFolderCommand}" ToolTip="일별 로그 파일(logs\yyyy-MM-dd.log)이 있는 폴더를 열어요."/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ═════════════ 내용 ═════════════ -->
+        <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" Margin="28,22,28,24" Focusable="False"/>
+    </Grid>
+</Window>
